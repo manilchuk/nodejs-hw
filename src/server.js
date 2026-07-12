@@ -4,6 +4,7 @@ import express from 'express';
 import cors from 'cors';
 import 'dotenv/config';
 import helmet from 'helmet';
+import { errors } from 'celebrate';
 import { connectMongoDB } from './db/connectMongoDB.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { notFoundHandler } from './middleware/notFoundHandler.js';
@@ -22,6 +23,9 @@ app.use(notsRoutes);
 
 // Middleware для обробки неіснуючих маршрутів
 app.use(notFoundHandler);
+
+// Middleware для обробки помилок валідації
+app.use(errors());
 
 // Middleware для обробки помилок
 app.use(errorHandler);
