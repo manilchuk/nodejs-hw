@@ -6,8 +6,8 @@ import { TAGS } from '../constants/tags.js';
 
 export const getAllNotesSchema = {
   [Segments.QUERY]: Joi.object({
-    page: Joi.number().integer().min(1),
-    perPage: Joi.number().integer().min(5).max(20),
+    page: Joi.number().integer().min(1).default(1),
+    perPage: Joi.number().integer().min(5).max(20).default(10),
     tag: Joi.string().valid(...TAGS),
     search: Joi.string().trim().allow(''),
   }),
@@ -18,7 +18,7 @@ const objIdValidator = (value, helpers) => {
     return value;
   }
 
-  return helpers.message('Dad id format');
+  return helpers.message('Bad id format');
 };
 
 export const noteIdSchema = {
@@ -29,11 +29,9 @@ export const noteIdSchema = {
 
 export const createNoteSchema = {
   [Segments.BODY]: Joi.object({
-    title: Joi.string().min(2).max(30).required(),
-    content: Joi.string().required(),
-    tag: Joi.string()
-      .valid(...TAGS)
-      .required(),
+    title: Joi.string().min(1).max(30).required(),
+    content: Joi.string().allow(''),
+    tag: Joi.string().valid(...TAGS),
   }),
 };
 
@@ -42,8 +40,8 @@ export const updateNoteSchema = {
     noteId: Joi.string().custom(objIdValidator).required(),
   }),
   [Segments.BODY]: Joi.object({
-    title: Joi.string().min(2).max(30),
-    content: Joi.string(),
+    title: Joi.string().min(1).max(30),
+    content: Joi.string().allow(''),
     tag: Joi.string().valid(...TAGS),
   }).min(1),
 };
