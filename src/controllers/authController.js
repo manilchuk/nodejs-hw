@@ -122,7 +122,7 @@ export const requestResetEmail = async (req, res) => {
   const template = handlebars.compile(templateSource);
   const html = template({
     name: user.username,
-    frontEndUrl: `${process.env.FRONTEND_DOMAIN}/reset-pwd?token=${token}`,
+    frontEndUrl: `${process.env.FRONTEND_DOMAIN}/reset-password?token=${token}`,
   });
 
   try {
