@@ -1,3 +1,5 @@
+// src/controllers/notesController.js
+
 import { Note } from '../models/note.js';
 import createHttpError from 'http-errors';
 

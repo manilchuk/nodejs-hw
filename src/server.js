@@ -5,6 +5,8 @@ import cors from 'cors';
 import 'dotenv/config';
 import helmet from 'helmet';
 import { errors } from 'celebrate';
+import swaggerUi from 'swagger-ui-express';
+import swaggerDocument from './swagger.json' with { type: 'json' };
 import cookieParser from 'cookie-parser';
 import { connectMongoDB } from './db/connectMongoDB.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -12,6 +14,7 @@ import { notFoundHandler } from './middleware/notFoundHandler.js';
 import { logger } from './middleware/logger.js';
 import notsRoutes from './routes/notesRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import userRoutes from './routes/userRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT ?? 3000;
@@ -22,8 +25,10 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(cors());
 
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 app.use(notsRoutes);
 app.use(authRoutes);
+app.use(userRoutes);
 
 // Middleware для обробки неіснуючих маршрутів
 app.use(notFoundHandler);

@@ -1,0 +1,775 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Notes API",
+    "description": "Description 123",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3005/"
+    }
+  ],
+  "tags": [
+    { "name": "Auth", "description": "Registration, login, sessions" },
+    { "name": "Notes", "description": "CRUD operations on notes" },
+    { "name": "Users", "description": "User profile operations" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "accessToken",
+        "description": "Authentication via the accessToken cookie, set after login/registration"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string", "example": "64f1a2b3c4d5e6f7a8b9c0d1" },
+          "username": {
+            "type": "string",
+            "example": "user@example.com",
+            "description": "If not provided at registration, defaults to the email"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "user@example.com"
+          },
+          "avatar": {
+            "type": "string",
+            "example": "https://ac.goit.global/fullstack/react/default-avatar.jpg",
+            "description": "Avatar URL, defaults to a standard placeholder image"
+          },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Note": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string", "example": "64f1a2b3c4d5e6f7a8b9c0d2" },
+          "title": { "type": "string", "example": "Buy groceries" },
+          "content": { "type": "string", "example": "Milk, eggs, bread" },
+          "tag": {
+            "type": "string",
+            "enum": [
+              "Work",
+              "Personal",
+              "Meeting",
+              "Shopping",
+              "Ideas",
+              "Travel",
+              "Finance",
+              "Health",
+              "Important",
+              "Todo"
+            ],
+            "example": "Personal"
+          },
+          "userId": { "type": "string", "example": "64f1a2b3c4d5e6f7a8b9c0d1" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "NoteInput": {
+        "type": "object",
+        "required": ["title"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "example": "Buy groceries"
+          },
+          "content": {
+            "type": "string",
+            "example": "Milk, eggs, bread",
+            "description": "Optional field, defaults to an empty string"
+          },
+          "tag": {
+            "type": "string",
+            "enum": [
+              "Work",
+              "Personal",
+              "Meeting",
+              "Shopping",
+              "Ideas",
+              "Travel",
+              "Finance",
+              "Health",
+              "Important",
+              "Todo"
+            ],
+            "default": "Todo",
+            "example": "Todo",
+            "description": "Optional field, defaults to 'Todo'"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string", "example": "Request error" }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "description": "Default celebrate/Joi validation error format, returned by the celebrate errors() middleware before it reaches the custom error handler.",
+        "properties": {
+          "statusCode": { "type": "integer", "example": 400 },
+          "error": { "type": "string", "example": "Bad Request" },
+          "message": { "type": "string", "example": "Validation failed" },
+          "validation": {
+            "type": "object",
+            "description": "Details keyed by request segment (e.g. body, query, params)",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "source": { "type": "string", "example": "body" },
+                "keys": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "example": ["password"]
+                },
+                "message": {
+                  "type": "string",
+                  "example": "\"password\" is required"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Register a new user",
+        "description": "Creates a user, hashes the password, and immediately creates a session (sets the accessToken, refreshToken, sessionId cookies).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "user@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "minLength": 8,
+                    "example": "SuperSecret123"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/User" }
+              }
+            }
+          },
+          "400": {
+            "description": "Email already in use, or request body failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/Error" },
+                    { "$ref": "#/components/schemas/ValidationError" }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Log in a user",
+        "description": "Verifies email/password, deletes the previous session, creates a new one, and sets cookies.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "user@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "example": "SuperSecret123"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/User" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid email or password",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body failed validation",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Log out a user",
+        "description": "Deletes the session by sessionId from the cookie (if present) and clears the accessToken, refreshToken, and sessionId cookies. Does not require a valid session — if the sessionId cookie is missing, it still responds with 204.",
+        "responses": {
+          "204": {
+            "description": "Successfully logged out, no content"
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Refresh session",
+        "description": "Refreshes the session using the sessionId and refreshToken cookies (not accessToken). Requires both cookies to be present and valid.",
+        "responses": {
+          "200": {
+            "description": "Session refreshed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Session refreshed"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Tokens missing, session not found, or token expired",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/request-reset-email": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Request a password reset",
+        "description": "Sends a password reset link by email if a user with that email exists.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "user@example.com"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Always returns the same response shape and message, whether or not a user with this email exists, to avoid leaking account existence.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Password reset email sent successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to send the email",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body failed validation",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Reset password",
+        "description": "Verifies the JWT token from the email and sets a new password. Deletes all sessions for the user.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["password", "token"],
+                "properties": {
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "minLength": 8,
+                    "example": "NewSecret123"
+                  },
+                  "token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIs..."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password successfully changed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Password reset successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or expired token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body failed validation",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notes": {
+      "get": {
+        "tags": ["Notes"],
+        "summary": "Get a list of notes",
+        "description": "Returns the current user's notes with support for pagination, tag filtering, and search by title/content.",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number",
+            "schema": { "type": "integer", "minimum": 1, "default": 1 }
+          },
+          {
+            "name": "perPage",
+            "in": "query",
+            "description": "Number of items per page",
+            "schema": {
+              "type": "integer",
+              "minimum": 5,
+              "maximum": 20,
+              "default": 10
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "description": "Filter notes by tag",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Work",
+                "Personal",
+                "Meeting",
+                "Shopping",
+                "Ideas",
+                "Travel",
+                "Finance",
+                "Health",
+                "Important",
+                "Todo"
+              ]
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Search by title or content (case-insensitive). Empty string is allowed.",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of notes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "page": { "type": "integer", "example": 1 },
+                    "perPage": { "type": "integer", "example": 10 },
+                    "totalNotes": { "type": "integer", "example": 42 },
+                    "totalPages": { "type": "integer", "example": 5 },
+                    "notes": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Note" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Query parameters failed validation",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Notes"],
+        "summary": "Create a note",
+        "security": [{ "cookieAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/NoteInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Note created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Note" }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body failed validation",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notes/{noteId}": {
+      "get": {
+        "tags": ["Notes"],
+        "summary": "Get a note by id",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          {
+            "name": "noteId",
+            "in": "path",
+            "required": true,
+            "description": "MongoDB ObjectId of the note",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{24}$",
+              "example": "64f1a2b3c4d5e6f7a8b9c0d2"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Note found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Note" }
+              }
+            }
+          },
+          "404": {
+            "description": "Note not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "400": {
+            "description": "noteId failed validation",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Notes"],
+        "summary": "Delete a note by id",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          {
+            "name": "noteId",
+            "in": "path",
+            "required": true,
+            "description": "MongoDB ObjectId of the note",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{24}$",
+              "example": "64f1a2b3c4d5e6f7a8b9c0d2"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted note returned",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Note" }
+              }
+            }
+          },
+          "404": {
+            "description": "Note not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "400": {
+            "description": "noteId failed validation",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Notes"],
+        "summary": "Update a note by id",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          {
+            "name": "noteId",
+            "in": "path",
+            "required": true,
+            "description": "MongoDB ObjectId of the note",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{24}$",
+              "example": "64f1a2b3c4d5e6f7a8b9c0d2"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "minProperties": 1,
+                "description": "At least one field must be provided",
+                "properties": {
+                  "title": { "type": "string", "minLength": 1 },
+                  "content": { "type": "string" },
+                  "tag": {
+                    "type": "string",
+                    "enum": [
+                      "Work",
+                      "Personal",
+                      "Meeting",
+                      "Shopping",
+                      "Ideas",
+                      "Travel",
+                      "Finance",
+                      "Health",
+                      "Important",
+                      "Todo"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated note returned",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Note" }
+              }
+            }
+          },
+          "404": {
+            "description": "Note not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body or noteId failed validation",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/me/avatar": {
+      "patch": {
+        "tags": ["Users"],
+        "summary": "Update user avatar",
+        "description": "Uploads a file to Cloudinary and updates the user's avatar field.",
+        "security": [{ "cookieAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["photo"],
+                "properties": {
+                  "photo": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Avatar image file. Must be an image (image/*) and no larger than 2 MB."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "New avatar URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "example": "https://res.cloudinary.com/.../avatar.jpg"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No file provided",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "File rejected by multer (wrong mime type or exceeds the 2 MB limit). Note: these are plain Error/MulterError instances, not HttpError, so the current errorHandler treats them as unexpected server errors (500) rather than 400 — likely worth fixing in errorHandler.js to return 400 for these cases.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
