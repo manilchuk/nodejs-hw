@@ -7,7 +7,7 @@ const doc = {
     title: 'Notes API',
     description: 'Description 123',
   },
-  host: 'localhost:3005',
+  host: 'https://zero5-mail-and-img-seqr.onrender.com',
 };
 
 const outputFile = './swagger.json';
